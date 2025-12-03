@@ -1,0 +1,13 @@
+# Rust / Cargo
+/target
+**/*.rs.bk
+Cargo.lock
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
