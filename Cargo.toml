@@ -1,21 +1,23 @@
 [package]
 name = "crosswin"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "Async-friendly Windows primitives for Rust (MVP: process enumeration)."
+description = "Async-friendly Windows primitives for Rust with process management, memory monitoring, and system operations."
 readme = "README.md"
 repository = "https://github.com/M1tsumi/crosswin"
 documentation = "https://docs.rs/crosswin"
-keywords = ["windows", "win32", "async", "process"]
-categories = ["os::windows-apis", "api-bindings"]
+keywords = ["windows", "win32", "async", "process", "system"]
+categories = ["os::windows-apis", "api-bindings", "development-tools"]
 
 [dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-windows = { version = "0.62", features = [
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+windows = { version = "0.56", features = [
     "Win32_Foundation",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_Security",
 ], optional = true }
 
 [features]

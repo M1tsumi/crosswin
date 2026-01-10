@@ -11,7 +11,7 @@ impl Thread {
         Ok(Thread { handle: None })
     }
 
-    pub fn handle(&self) -> Option<Handle> {
-        self.handle
+    pub fn handle(&self) -> Option<&Handle> {
+        self.handle.as_ref()
     }
 }
