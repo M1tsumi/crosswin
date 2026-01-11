@@ -66,6 +66,15 @@ fn enumerate_processes_blocking() -> Result<Vec<ProcessInfo>> {
 
         loop {
             let pid = entry.th32ProcessID;
+
+            // Skip the idle/system process with PID 0; most callers expect positive PIDs
+            if pid == 0 {
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+                continue;
+            }
+
             let name = exe_name_from_entry(&entry);
             let parent_pid = Some(entry.th32ParentProcessID);
             let thread_count = Some(entry.cntThreads);
