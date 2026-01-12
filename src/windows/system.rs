@@ -1,4 +1,6 @@
-use crate::error::{CrosswinError, Result};
+use crate::error::Result;
+#[cfg(not(feature = "win32"))]
+use crate::error::CrosswinError;
 use std::time::{Duration, SystemTime};
 #[cfg(feature = "win32")]
 use windows::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};

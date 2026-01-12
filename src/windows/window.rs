@@ -103,17 +103,19 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
             let mut title = String::new();
             if len > 0 {
                 let mut buf: Vec<u16> = vec![0; (len + 1) as usize];
-                let read = GetWindowTextW(hwnd, &mut buf).unwrap_or(0);
+                let read_i32 = GetWindowTextW(hwnd, &mut buf);
+                let read = if read_i32 <= 0 { 0 } else { read_i32 as usize };
                 if read > 0 {
-                    title = String::from_utf16_lossy(&buf[..read as usize]);
+                    title = String::from_utf16_lossy(&buf[..read]);
                 }
             }
 
             // Class
             let mut class_buf: [u16; 256] = [0; 256];
-            let class_len = GetClassNameW(hwnd, &mut class_buf).unwrap_or(0);
+            let class_len_i32 = GetClassNameW(hwnd, &mut class_buf);
+            let class_len = if class_len_i32 <= 0 { 0 } else { class_len_i32 as usize };
             let class_name = if class_len > 0 {
-                Some(String::from_utf16_lossy(&class_buf[..class_len as usize]))
+                Some(String::from_utf16_lossy(&class_buf[..class_len]))
             } else {
                 None
             };
@@ -193,9 +195,10 @@ pub fn get_window_text(_hwnd: u64) -> Result<String> {
                 return Ok(String::new());
             }
             let mut buf: Vec<u16> = vec![0; (len + 1) as usize];
-            let read = GetWindowTextW(h, &mut buf).unwrap_or(0);
+            let read_i32 = GetWindowTextW(h, &mut buf);
+            let read = if read_i32 <= 0 { 0 } else { read_i32 as usize };
             if read > 0 {
-                Ok(String::from_utf16_lossy(&buf[..read as usize]))
+                Ok(String::from_utf16_lossy(&buf[..read]))
             } else {
                 Ok(String::new())
             }
