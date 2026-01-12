@@ -83,12 +83,12 @@ impl Process {
     }
 
     /// Open a process by PID with specified access rights
-    pub fn open(pid: u32, access: ProcessAccess) -> Result<Self> {
+    pub fn open(pid: u32, _access: ProcessAccess) -> Result<Self> {
         #[cfg(feature = "win32")]
         {
             unsafe {
                 let handle = OpenProcess(
-                    windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS(access.to_windows_flags()),
+                    windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS(_access.to_windows_flags()),
                     false,
                     pid,
                 )
@@ -130,14 +130,14 @@ impl Process {
     }
 
     /// Terminate the process with the given exit code
-    pub fn terminate(&self, exit_code: u32) -> Result<()> {
+    pub fn terminate(&self, _exit_code: u32) -> Result<()> {
         #[cfg(feature = "win32")]
         {
             let handle = self.handle.as_ref()
                 .ok_or_else(|| CrosswinError::invalid_parameter("handle", "Process handle is not available"))?;
             
             unsafe {
-                TerminateProcess(handle.as_handle().as_windows_handle(), exit_code)
+                TerminateProcess(handle.as_handle().as_windows_handle(), _exit_code)
                     .map_err(|e| CrosswinError::win32(
                         "TerminateProcess",
                         e.code().0 as u32,
@@ -234,14 +234,14 @@ impl Process {
 
     /// Wait for the process to exit, with an optional timeout in milliseconds
     /// Returns the exit code if the process exits, or None if timeout occurs
-    pub fn wait_for_exit(&self, timeout_ms: Option<u32>) -> Result<Option<u32>> {
+    pub fn wait_for_exit(&self, _timeout_ms: Option<u32>) -> Result<Option<u32>> {
         #[cfg(feature = "win32")]
         {
             let handle = self.handle.as_ref()
                 .ok_or_else(|| CrosswinError::invalid_parameter("handle", "Process handle is not available"))?;
             
             unsafe {
-                let timeout = timeout_ms.unwrap_or(INFINITE);
+                let timeout = _timeout_ms.unwrap_or(INFINITE);
                 let wait_result = WaitForSingleObject(handle.as_handle().as_windows_handle(), timeout);
 
                 match wait_result {
@@ -336,7 +336,7 @@ impl Process {
     }
 
     /// Set the priority class of the process
-    pub fn set_priority(&self, priority: ProcessPriority) -> Result<()> {
+    pub fn set_priority(&self, _priority: ProcessPriority) -> Result<()> {
         #[cfg(feature = "win32")]
         {
             let handle = self.handle.as_ref()
@@ -345,7 +345,7 @@ impl Process {
             unsafe {
                 SetPriorityClass(
                     handle.as_handle().as_windows_handle(),
-                    windows::Win32::System::Threading::PROCESS_CREATION_FLAGS(priority.to_windows_constant())
+                    windows::Win32::System::Threading::PROCESS_CREATION_FLAGS(_priority.to_windows_constant())
                 )
                 .map_err(|e| CrosswinError::win32(
                     "SetPriorityClass",

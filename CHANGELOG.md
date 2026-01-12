@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2026-01-11
+
+### Major Features
+
+- **Window Management**: Added window discovery and manipulation APIs under `src/windows/window.rs`:
+  - `list_windows()` enumerates top-level windows and returns `WindowInfo` (title, class, size, visibility, owning PID).
+  - `Window` wrapper and operations: `show`, `hide`, `set_title`, `bring_to_front` (Win32-backed when `win32` feature enabled; stubs otherwise).
+  - Search helpers: `find_windows_by_title`, `find_windows_by_class`, `find_windows_by_process`.
+
+- **System Information**: Added `src/windows/system.rs`:
+  - `get_system_info()` (CPU count, page size, total physical memory when available).
+  - `get_system_uptime()` and `get_boot_time()` (Win32-backed via `GetTickCount64`, stubs otherwise).
+
+### Improvements
+
+- **Examples**: Added examples demonstrating new APIs:
+  - `examples/list_windows.rs`
+  - `examples/find_window.rs`
+  - `examples/system_info.rs`
+
+- **Docs & Packaging**:
+  - Bumped crate version to `0.3.0`.
+  - Updated `README.md` and `current.txt` to document the new surface.
+
+### Notes
+
+- The Win32 implementations are gated behind the `win32` feature and use the `windows` crate; on non-Windows builds the APIs are graceful stubs that either return empty lists or `CrosswinError::invalid_parameter("platform")` where appropriate. Use `--features win32` to enable full functionality on Windows.
+- Minor warnings from interim stubs were fixed (unused variables / dead code allowances) and `cargo check --no-default-features --features tokio` completes successfully on Linux.
+
+
 ## 0.2.0 - 2026-01-10
 
 ### Major Features
