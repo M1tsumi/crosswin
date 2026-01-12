@@ -10,21 +10,22 @@ A high-level, ergonomic wrapper around the Windows API that provides async proce
 
 ## Status
 
-Active development. Version 0.2.0 adds rich process information, process operations, and filtering capabilities.
+Active development. Version 0.3.0 adds window discovery/manipulation and system information queries on top of the existing process-management surface.
 
-**Supported:**
+**Supported (v0.3.0):**
 - Process enumeration with rich metadata (PID, name, path, parent, memory, CPU time, threads, priority)
 - Process operations (open, terminate, suspend, resume, wait for exit)
 - Process filtering and search by name, memory usage, thread count, parent PID
 - Memory usage monitoring
 - Process priority management
 - RAII handle management (automatic cleanup, prevents leaks)
+- Window enumeration and basic window operations (stubs on non-Windows builds)
+- Basic system information queries (CPU count, page size, uptime stub)
 
-**Planned:**
-- Window management (enumerate, manipulate windows)
+**Planned (future):**
 - Registry operations
 - Service management
-- Performance counters
+- Advanced performance counters and metrics
 - Event log reading
 
 ## Features

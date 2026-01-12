@@ -1,6 +1,10 @@
-use crate::error::{CrosswinError, Result};
+use crate::error::Result;
 
-use super::{ProcessInfo, ProcessPriority};
+use super::ProcessInfo;
+#[cfg(feature = "win32")]
+use super::ProcessPriority;
+#[cfg(feature = "win32")]
+use crate::error::CrosswinError;
 
 #[cfg(feature = "win32")]
 use windows::Win32::Foundation::{CloseHandle, FILETIME};
