@@ -29,10 +29,9 @@ pub fn get_system_info() -> Result<SystemInfo> {
 
             let mut mem: MEMORYSTATUSEX = std::mem::zeroed();
             mem.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
-            let total_physical = if GlobalMemoryStatusEx(&mut mem).as_bool() {
-                Some(mem.ullTotalPhys as u64)
-            } else {
-                None
+            let total_physical = match GlobalMemoryStatusEx(&mut mem) {
+                Ok(_) => Some(mem.ullTotalPhys as u64),
+                Err(_) => None,
             };
 
             Ok(SystemInfo {

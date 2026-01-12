@@ -87,15 +87,13 @@ impl Window {
 pub async fn list_windows() -> Result<Vec<WindowInfo>> {
     #[cfg(feature = "win32")]
     {
-        use std::ptr::null_mut;
-        use windows::core::PWSTR;
-        use windows::Win32::Foundation::{HWND, LPARAM, RECT};
+        use windows::Win32::Foundation::{HWND, LPARAM, RECT, BOOL};
         use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetClassNameW, IsWindowVisible, GetWindowRect, GetWindowThreadProcessId};
 
-        unsafe extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> i32 {
+        unsafe extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
             let vec_ptr = lparam.0 as *mut Vec<WindowInfo>;
             if vec_ptr.is_null() {
-                return 1;
+                return BOOL(1);
             }
 
             let list = &mut *vec_ptr;
@@ -105,7 +103,7 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
             let mut title = String::new();
             if len > 0 {
                 let mut buf: Vec<u16> = vec![0; (len + 1) as usize];
-                let read = GetWindowTextW(hwnd, PWSTR(buf.as_mut_ptr()), len + 1);
+                let read = GetWindowTextW(hwnd, &mut buf).unwrap_or(0);
                 if read > 0 {
                     title = String::from_utf16_lossy(&buf[..read as usize]);
                 }
@@ -113,7 +111,7 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
 
             // Class
             let mut class_buf: [u16; 256] = [0; 256];
-            let class_len = GetClassNameW(hwnd, PWSTR(class_buf.as_mut_ptr()), 256);
+            let class_len = GetClassNameW(hwnd, &mut class_buf).unwrap_or(0);
             let class_name = if class_len > 0 {
                 Some(String::from_utf16_lossy(&class_buf[..class_len as usize]))
             } else {
@@ -131,7 +129,7 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
 
             // Process ID
             let mut pid: u32 = 0;
-            let _ = GetWindowThreadProcessId(hwnd, &mut pid);
+            let _ = GetWindowThreadProcessId(hwnd, Some(&mut pid));
 
             list.push(WindowInfo {
                 hwnd: hwnd.0 as u64,
@@ -143,7 +141,7 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
                 process_id: Some(pid),
             });
 
-            1
+            BOOL(1)
         }
 
         let mut list: Vec<WindowInfo> = Vec::new();
@@ -184,19 +182,18 @@ pub async fn find_windows_by_process(pid: u32) -> Result<Vec<WindowInfo>> {
 pub fn get_window_text(_hwnd: u64) -> Result<String> {
     #[cfg(feature = "win32")]
     {
-        use windows::core::PWSTR;
         use windows::Win32::Foundation::HWND;
         use windows::Win32::UI::WindowsAndMessaging::GetWindowTextLengthW;
         use windows::Win32::UI::WindowsAndMessaging::GetWindowTextW;
 
         unsafe {
-            let h = HWND(hwnd as isize);
+            let h = HWND(_hwnd as isize);
             let len = GetWindowTextLengthW(h);
             if len <= 0 {
                 return Ok(String::new());
             }
             let mut buf: Vec<u16> = vec![0; (len + 1) as usize];
-            let read = GetWindowTextW(h, PWSTR(buf.as_mut_ptr()), len + 1);
+            let read = GetWindowTextW(h, &mut buf).unwrap_or(0);
             if read > 0 {
                 Ok(String::from_utf16_lossy(&buf[..read as usize]))
             } else {
@@ -218,7 +215,7 @@ pub fn get_window_text(_hwnd: u64) -> Result<String> {
         use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
         use windows::Win32::Foundation::HWND;
         unsafe {
-            SetForegroundWindow(HWND(hwnd as isize));
+            SetForegroundWindow(HWND(_hwnd as isize));
         }
         Ok(())
     }
