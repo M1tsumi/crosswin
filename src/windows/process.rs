@@ -3,7 +3,7 @@ use crate::windows::handles::ProcessHandle;
 use crate::processes::{MemoryInfo, ProcessPriority};
 
 #[cfg(feature = "win32")]
-use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0, WAIT_TIMEOUT};
+use windows::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
 #[cfg(feature = "win32")]
 use windows::Win32::System::Threading::{
     OpenProcess, TerminateProcess, GetCurrentProcess, GetExitCodeProcess,
@@ -152,10 +152,14 @@ impl Process {
         }
     }
 
-    /// Suspend all threads in the process
+    /// Suspend all threads in the process.
+    ///
+    /// Per-thread errors are surfaced: on the first unrecoverable failure (after
+    /// attempting every thread) a `CrosswinError::Win32` is returned.
     pub fn suspend(&self) -> Result<()> {
         #[cfg(feature = "win32")]
         {
+            use crate::windows::handles::Handle;
             unsafe {
                 let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)
                     .map_err(|e| CrosswinError::win32(
@@ -163,26 +167,51 @@ impl Process {
                         e.code().0 as u32,
                         e.to_string()
                     ))?;
+                // RAII closes snapshot even on early return.
+                let _snapshot_guard = Handle::from_windows_handle(snapshot);
 
                 let mut entry = THREADENTRY32::default();
                 entry.dwSize = std::mem::size_of::<THREADENTRY32>() as u32;
 
+                let mut first_error: Option<CrosswinError> = None;
+
                 if Thread32First(snapshot, &mut entry).is_ok() {
                     loop {
                         if entry.th32OwnerProcessID == self.pid {
-                            if let Ok(thread_handle) = OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID) {
-                                let _ = SuspendThread(thread_handle);
-                                let _ = CloseHandle(thread_handle);
+                            match OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID) {
+                                Ok(thread_handle) => {
+                                    let _guard = Handle::from_windows_handle(thread_handle);
+                                    if SuspendThread(thread_handle) == u32::MAX {
+                                        let code = windows::Win32::Foundation::GetLastError().0;
+                                        if first_error.is_none() {
+                                            first_error = Some(CrosswinError::win32(
+                                                "SuspendThread",
+                                                code,
+                                                format!("thread {} could not be suspended", entry.th32ThreadID),
+                                            ));
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    if first_error.is_none() {
+                                        first_error = Some(CrosswinError::win32(
+                                            "OpenThread",
+                                            e.code().0 as u32,
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
                             }
                         }
-
                         if Thread32Next(snapshot, &mut entry).is_err() {
                             break;
                         }
                     }
                 }
 
-                let _ = CloseHandle(snapshot);
+                if let Some(err) = first_error {
+                    return Err(err);
+                }
                 Ok(())
             }
         }
@@ -192,10 +221,14 @@ impl Process {
         }
     }
 
-    /// Resume all threads in the process
+    /// Resume all threads in the process.
+    ///
+    /// Per-thread errors are surfaced: on the first unrecoverable failure (after
+    /// attempting every thread) a `CrosswinError::Win32` is returned.
     pub fn resume(&self) -> Result<()> {
         #[cfg(feature = "win32")]
         {
+            use crate::windows::handles::Handle;
             unsafe {
                 let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)
                     .map_err(|e| CrosswinError::win32(
@@ -203,26 +236,50 @@ impl Process {
                         e.code().0 as u32,
                         e.to_string()
                     ))?;
+                let _snapshot_guard = Handle::from_windows_handle(snapshot);
 
                 let mut entry = THREADENTRY32::default();
                 entry.dwSize = std::mem::size_of::<THREADENTRY32>() as u32;
 
+                let mut first_error: Option<CrosswinError> = None;
+
                 if Thread32First(snapshot, &mut entry).is_ok() {
                     loop {
                         if entry.th32OwnerProcessID == self.pid {
-                            if let Ok(thread_handle) = OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID) {
-                                let _ = ResumeThread(thread_handle);
-                                let _ = CloseHandle(thread_handle);
+                            match OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID) {
+                                Ok(thread_handle) => {
+                                    let _guard = Handle::from_windows_handle(thread_handle);
+                                    if ResumeThread(thread_handle) == u32::MAX {
+                                        let code = windows::Win32::Foundation::GetLastError().0;
+                                        if first_error.is_none() {
+                                            first_error = Some(CrosswinError::win32(
+                                                "ResumeThread",
+                                                code,
+                                                format!("thread {} could not be resumed", entry.th32ThreadID),
+                                            ));
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    if first_error.is_none() {
+                                        first_error = Some(CrosswinError::win32(
+                                            "OpenThread",
+                                            e.code().0 as u32,
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
                             }
                         }
-
                         if Thread32Next(snapshot, &mut entry).is_err() {
                             break;
                         }
                     }
                 }
 
-                let _ = CloseHandle(snapshot);
+                if let Some(err) = first_error {
+                    return Err(err);
+                }
                 Ok(())
             }
         }
@@ -358,6 +415,28 @@ impl Process {
         #[cfg(not(feature = "win32"))]
         {
             Err(CrosswinError::invalid_parameter("platform", "Not supported on this platform"))
+        }
+    }
+
+    /// Returns `true` when the process is still running.
+    ///
+    /// Polls `WaitForSingleObject` with a zero timeout.  Returns `false` if the
+    /// process has exited or the handle is unavailable.
+    pub fn is_running(&self) -> bool {
+        #[cfg(feature = "win32")]
+        {
+            let handle = match self.handle.as_ref() {
+                Some(h) => h,
+                None => return false,
+            };
+            unsafe {
+                let result = WaitForSingleObject(handle.as_handle().as_windows_handle(), 0);
+                result == WAIT_TIMEOUT
+            }
+        }
+        #[cfg(not(feature = "win32"))]
+        {
+            false
         }
     }
 }

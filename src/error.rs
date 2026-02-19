@@ -1,13 +1,41 @@
 use std::{error::Error as StdError, fmt};
 
+/// A thin `PartialEq`-compatible wrapper around `std::io::Error` that compares
+/// by `ErrorKind` only (since `std::io::Error` itself is not `PartialEq`).
 #[derive(Debug)]
+pub struct IoError(pub std::io::Error);
+
+impl PartialEq for IoError {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.kind() == other.0.kind()
+    }
+}
+
+impl fmt::Display for IoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<std::io::Error> for IoError {
+    fn from(e: std::io::Error) -> Self {
+        IoError(e)
+    }
+}
+
+/// Errors returned by crosswin operations.
+///
+/// This enum is `#[non_exhaustive]`: new variants may be added in future minor
+/// releases without a breaking change.
+#[non_exhaustive]
+#[derive(Debug, PartialEq)]
 pub enum CrosswinError {
     Win32 {
         operation: String,
         code: u32,
         message: String,
     },
-    Io(std::io::Error),
+    Io(IoError),
     AccessDenied {
         resource: String,
         pid: Option<u32>,
@@ -97,7 +125,7 @@ impl fmt::Display for CrosswinError {
 impl StdError for CrosswinError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            CrosswinError::Io(err) => Some(err),
+            CrosswinError::Io(err) => Some(&err.0),
             _ => None,
         }
     }
@@ -105,6 +133,6 @@ impl StdError for CrosswinError {
 
 impl From<std::io::Error> for CrosswinError {
     fn from(err: std::io::Error) -> Self {
-        CrosswinError::Io(err)
+        CrosswinError::Io(IoError(err))
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "crosswin"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Async-friendly Windows primitives for Rust with process management, memory monitoring, and system operations."
@@ -23,6 +23,7 @@ windows = { version = "0.56", features = [
 ], optional = true }
 num_cpus = "1.0"
 widestring = "0.5"
+serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = ["win32", "process", "tokio"]
@@ -30,6 +31,7 @@ default = ["win32", "process", "tokio"]
 win32 = ["windows"]
 process = []
 tokio = []
+serde = ["dep:serde"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
